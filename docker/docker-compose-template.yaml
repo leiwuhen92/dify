@@ -903,6 +903,27 @@ services:
       timeout: 10s
       retries: 3
 
+  surrealdb:
+    image: surrealdb/surrealdb:v2.4
+    container_name: surrealdb
+    profiles:
+      - surrealdb
+    command: start --log info --user root --pass root rocksdb:/data/mydatabase.db
+    restart: always
+    volumes:
+      - ./volumes/surrealdb/data:/data
+    environment:
+      SURREAL_CAPS_ALLOW_EXPERIMENTAL: graphql
+    user: "0:0"
+    ports:
+      - "10846:8000"
+
+  surrealist:
+    image: surrealdb/surrealist:3.6.14
+    container_name: surrealist
+    ports:
+      - "10847:8080"
+
   # unstructured .
   # (if used, you need to set ETL_TYPE to Unstructured in the api & worker service.)
   unstructured:

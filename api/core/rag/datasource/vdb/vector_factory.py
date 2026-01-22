@@ -191,6 +191,10 @@ class Vector:
                 from core.rag.datasource.vdb.iris.iris_vector import IrisVectorFactory
 
                 return IrisVectorFactory
+            case VectorType.SURREALDB:
+                from core.rag.datasource.vdb.surrealdb.surrealdb_vector import SurrealDBVectorFactory
+
+                return SurrealDBVectorFactory
             case _:
                 raise ValueError(f"Vector store {vector_type} is not supported.")
 

@@ -205,6 +205,7 @@ class RetrievalService:
         exceptions: list,
         document_ids_filter: list[str] | None = None,
     ):
+        logger.info(f"in keyword_search, query: {query}".center(66, "*"))
         with flask_app.app_context():
             try:
                 dataset = cls._get_dataset(dataset_id)
@@ -236,6 +237,7 @@ class RetrievalService:
         document_ids_filter: list[str] | None = None,
         query_type: QueryType = QueryType.TEXT_QUERY,
     ):
+        logger.info(f"in embedding_search, query_type: {query_type}".center(66, "*"))
         with flask_app.app_context():
             try:
                 dataset = cls._get_dataset(dataset_id)
@@ -603,6 +605,7 @@ class RetrievalService:
         document_ids_filter: list[str] | None = None,
         attachment_id: str | None = None,
     ):
+        logger.info(f"query: {query}, attachment_id: {attachment_id}, retrieval_method: {retrieval_method}, reranking_mode: {reranking_mode}")
         if not query and not attachment_id:
             return
         with flask_app.app_context():
@@ -698,6 +701,7 @@ class RetrievalService:
                 query = query or attachment_id
                 if not query:
                     return
+                logger.info(f"before data_post_processor.invoke, len(all_documents_item): {len(all_documents_item)}")
                 all_documents_item = data_post_processor.invoke(
                     query=query,
                     documents=all_documents_item,
@@ -705,6 +709,7 @@ class RetrievalService:
                     top_n=top_k,
                     query_type=QueryType.TEXT_QUERY if query else QueryType.IMAGE_QUERY,
                 )
+                logger.info(f"after data_post_processor.invoke, len(all_documents_item): {len(all_documents_item)}")
 
             all_documents.extend(all_documents_item)
 

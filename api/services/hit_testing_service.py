@@ -81,6 +81,7 @@ class HitTestingService:
             weights=retrieval_model.get("weights", None),
             document_ids_filter=document_ids_filter,
         )
+        logger.info(f"after RetrievalService.retrieve, all_documents's num is: {len(all_documents)}")
 
         end = time.perf_counter()
         logger.debug("Hit testing retrieve in %s seconds", end - start)
@@ -150,6 +151,7 @@ class HitTestingService:
     @classmethod
     def compact_retrieve_response(cls, query: str, documents: list[Document]) -> dict[Any, Any]:
         records = RetrievalService.format_retrieval_documents(documents)
+        logger.info(f"query: {query}, documents: {len(documents)}, records: {len(records)}")
 
         return {
             "query": {

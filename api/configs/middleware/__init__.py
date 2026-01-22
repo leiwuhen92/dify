@@ -47,6 +47,7 @@ from .vdb.upstash_config import UpstashConfig
 from .vdb.vastbase_vector_config import VastbaseVectorConfig
 from .vdb.vikingdb_config import VikingDBConfig
 from .vdb.weaviate_config import WeaviateConfig
+from .vdb.surrealdb_config import SurrealDBConfig
 
 
 class StorageConfig(BaseSettings):
@@ -364,5 +365,6 @@ class MiddlewareConfig(
     TableStoreConfig,
     DatasetQueueMonitorConfig,
     MatrixoneConfig,
+    SurrealDBConfig,
 ):
     pass

@@ -172,12 +172,19 @@ x-shared-env: &shared-api-worker-env
   SUPABASE_BUCKET_NAME: ${SUPABASE_BUCKET_NAME:-your-bucket-name}
   SUPABASE_API_KEY: ${SUPABASE_API_KEY:-your-access-key}
   SUPABASE_URL: ${SUPABASE_URL:-your-server-url}
-  VECTOR_STORE: ${VECTOR_STORE:-weaviate}
+  VECTOR_STORE: ${VECTOR_STORE:-surrealdb}
   VECTOR_INDEX_NAME_PREFIX: ${VECTOR_INDEX_NAME_PREFIX:-Vector_index}
   WEAVIATE_ENDPOINT: ${WEAVIATE_ENDPOINT:-http://weaviate:8080}
   WEAVIATE_API_KEY: ${WEAVIATE_API_KEY:-WVF5YThaHlkYwhGUSmCRgsX3tD5ngdN8pkih}
   WEAVIATE_GRPC_ENDPOINT: ${WEAVIATE_GRPC_ENDPOINT:-grpc://weaviate:50051}
   WEAVIATE_TOKENIZATION: ${WEAVIATE_TOKENIZATION:-word}
+  SURREALDB_URL: ${SURREALDB_URL:-ws://surrealdb:8000/rpc}
+  SURREALDB_USERNAME: ${SURREALDB_USERNAME:-root}
+  SURREALDB_PASSWORD: ${SURREALDB_PASSWORD:-root}
+  SURREALDB_NAMESPACE: ${SURREALDB_NAMESPACE:-cloud_ns}
+  SURREALDB_DATABASE: ${SURREALDB_DATABASE:-cloud_db}
+  SURREALDB_BATCH_SIZE: ${SURREALDB_BATCH_SIZE:-4}
+  SURREALDB_ENABLE_HYBRID_SEARCH: ${SURREALDB_ENABLE_HYBRID_SEARCH:-True}
   OCEANBASE_VECTOR_HOST: ${OCEANBASE_VECTOR_HOST:-oceanbase}
   OCEANBASE_VECTOR_PORT: ${OCEANBASE_VECTOR_PORT:-2881}
   OCEANBASE_VECTOR_USER: ${OCEANBASE_VECTOR_USER:-root@test}
@@ -1584,6 +1591,27 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+
+  surrealdb:
+    image: surrealdb/surrealdb:v2.4
+    container_name: surrealdb
+    profiles:
+      - surrealdb
+    command: start --log info --user root --pass root rocksdb:/data/mydatabase.db
+    restart: always
+    volumes:
+      - ./volumes/surrealdb/data:/data
+    environment:
+      SURREAL_CAPS_ALLOW_EXPERIMENTAL: graphql
+    user: "0:0"
+    ports:
+      - "10846:8000"
+
+  surrealist:
+    image: surrealdb/surrealist:3.6.14
+    container_name: surrealist
+    ports:
+      - "10847:8080"
 
   # unstructured .
   # (if used, you need to set ETL_TYPE to Unstructured in the api & worker service.)
