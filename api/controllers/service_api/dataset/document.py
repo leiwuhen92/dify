@@ -37,6 +37,7 @@ class DocumentAddByTextApi(DatasetApiResource):
     @cloud_edition_billing_resource_check("documents", "dataset")
     def post(self, tenant_id, dataset_id):
         """Create document by text."""
+        # 1、获取用户请求参数、解析参数、验证参数的合法性
         parser = reqparse.RequestParser()
         parser.add_argument("name", type=str, required=True, nullable=False, location="json")
         parser.add_argument("text", type=str, required=True, nullable=False, location="json")
@@ -52,6 +53,8 @@ class DocumentAddByTextApi(DatasetApiResource):
         parser.add_argument("retrieval_model", type=dict, required=False, nullable=False, location="json")
 
         args = parser.parse_args()
+
+        # 2、在数据库中验证数据集是否存在
         dataset_id = str(dataset_id)
         tenant_id = str(tenant_id)
         dataset = db.session.query(Dataset).filter(Dataset.tenant_id == tenant_id, Dataset.id == dataset_id).first()
@@ -59,6 +62,7 @@ class DocumentAddByTextApi(DatasetApiResource):
         if not dataset:
             raise ValueError("Dataset is not exist.")
 
+        # 3、索引技术类型验证
         if not dataset.indexing_technique and not args["indexing_technique"]:
             raise ValueError("indexing_technique is required.")
 
@@ -67,6 +71,7 @@ class DocumentAddByTextApi(DatasetApiResource):
         if text is None or name is None:
             raise ValueError("Both 'text' and 'name' must be non-null values.")
 
+        # 4、上传文件并添加数据源信息
         upload_file = FileService.upload_text(text=str(text), text_name=str(name))
         data_source = {
             "type": "upload_file",
@@ -74,10 +79,11 @@ class DocumentAddByTextApi(DatasetApiResource):
         }
         args["data_source"] = data_source
         knowledge_config = KnowledgeConfig(**args)
-        # validate args
+        # 5、validate args 进一步检查参数的合法性
         DocumentService.document_create_args_validate(knowledge_config)
 
         try:
+            # 6、启动文档分割任务，（1）分割文档构建嵌入向量并保存到向量库中；（2）提取关键词，并保存到数据库中
             documents, batch = DocumentService.save_document_with_dataset_id(
                 dataset=dataset,
                 knowledge_config=knowledge_config,
@@ -89,6 +95,7 @@ class DocumentAddByTextApi(DatasetApiResource):
             raise ProviderNotInitializeError(ex.description)
         document = documents[0]
 
+        # 7、返回成功创建的的文档和相关的批处理信息
         documents_and_batch_fields = {"document": marshal(document, document_fields), "batch": batch}
         return documents_and_batch_fields, 200
 
@@ -390,7 +397,7 @@ class DocumentIndexingStatusApi(DatasetApiResource):
 
 
 api.add_resource(
-    DocumentAddByTextApi,
+    DocumentAddByTextApi,                                                 # 知识库文件上传API
     "/datasets/<uuid:dataset_id>/document/create_by_text",
     "/datasets/<uuid:dataset_id>/document/create-by-text",
 )

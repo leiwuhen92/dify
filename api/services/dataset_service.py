@@ -862,7 +862,7 @@ class DocumentService:
         dataset_process_rule: Optional[DatasetProcessRule] = None,
         created_from: str = "web",
     ):
-        # check document limit
+        # check document limit 参数检查和限制验证：检查文档数量是否超出限制
         features = FeatureService.get_features(current_user.current_tenant_id)
 
         if features.billing.enabled:
@@ -885,10 +885,11 @@ class DocumentService:
 
                     DocumentService.check_documents_upload_quota(count, features)
 
-        # if dataset is empty, update dataset data_source_type
+        # if dataset is empty, update dataset data_source_type  更新数据集的数据源类型
         if not dataset.data_source_type:
             dataset.data_source_type = knowledge_config.data_source.info_list.data_source_type  # type: ignore
 
+        # 设置索引技术，配置高质量索引的相关设置，设置嵌入模型和检索模型
         if not dataset.indexing_technique:
             if knowledge_config.indexing_technique not in Dataset.INDEXING_TECHNIQUE_LIST:
                 raise ValueError("Indexing technique is invalid")
@@ -926,14 +927,15 @@ class DocumentService:
                         else default_retrieval_model
                     )  # type: ignore
 
+        # 根据是否存在原始文档ID，分两种情况：
         documents = []
-        if knowledge_config.original_document_id:
+        if knowledge_config.original_document_id:  # a、更新已有文档
             document = DocumentService.update_document_with_dataset_id(dataset, knowledge_config, account)
             documents.append(document)
             batch = document.batch
-        else:
+        else:                                      # b、创建新文档
             batch = time.strftime("%Y%m%d%H%M%S") + str(random.randint(100000, 999999))
-            # save process rule
+            # save process rule  保存处理规则
             if not dataset_process_rule:
                 process_rule = knowledge_config.process_rule
                 if process_rule:
@@ -958,6 +960,8 @@ class DocumentService:
                         return
                     db.session.add(dataset_process_rule)
                     db.session.commit()
+
+            # 使用 redis 锁确保并发安全，并按数据类型分别处理文档
             lock_name = "add_document_lock_dataset_id_{}".format(dataset.id)
             with redis_client.lock(lock_name, timeout=600):
                 position = DocumentService.get_documents_position(dataset.id)
@@ -980,7 +984,7 @@ class DocumentService:
                         data_source_info = {
                             "upload_file_id": file_id,
                         }
-                        # check duplicate
+                        # check duplicate   检查文档是否已存在
                         if knowledge_config.duplicate:
                             document = Document.query.filter_by(
                                 dataset_id=dataset.id,
@@ -1002,6 +1006,8 @@ class DocumentService:
                                 documents.append(document)
                                 duplicate_document_ids.append(document.id)
                                 continue
+
+                        # 1、构建Document入库，这里的Document是知识库中的单个文档
                         document = DocumentService.build_document(
                             dataset,
                             dataset_process_rule.id,  # type: ignore
@@ -1119,7 +1125,7 @@ class DocumentService:
                         position += 1
                 db.session.commit()
 
-                # trigger async task
+                # 2、trigger async task  celery启动异步索引任务，针对知识库中的每个文档创建索引
                 if document_ids:
                     document_indexing_task.delay(dataset.id, document_ids)
                 if duplicate_document_ids:
