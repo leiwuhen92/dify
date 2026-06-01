@@ -47,7 +47,7 @@ class IndexingRunner:
         self.model_manager = ModelManager()
 
     def run(self, dataset_documents: list[DatasetDocument]):
-        """Run the indexing process."""
+        """Run the indexing process. 包含了RAG索引的实现细节"""
         for dataset_document in dataset_documents:
             try:
                 # get dataset
@@ -64,19 +64,23 @@ class IndexingRunner:
                 )
                 if not processing_rule:
                     raise ValueError("no process rule found")
+
+                # 1、根据文档格式doc_form获取索引处理器
                 index_type = dataset_document.doc_form
                 index_processor = IndexProcessorFactory(index_type).init_index_processor()
-                # extract
+
+                # 2、extract 提取文档信息，需适配各种文档格式，提取富文本中的文字信息
                 text_docs = self._extract(index_processor, dataset_document, processing_rule.to_dict())
 
-                # transform
+                # 3、transform 将文档内容切片，单个文档按照处理规则切分成多个chunks
                 documents = self._transform(
                     index_processor, dataset, text_docs, dataset_document.doc_language, processing_rule.to_dict()
                 )
-                # save segment
+
+                # 4、save segment  存储片段，将最终切片的chunks构造 document_segment入库
                 self._load_segments(dataset, dataset_document, documents)
 
-                # load
+                # 5、load 索引中间件加载  jieba分词，存入向量库，更新document_segment表状态为completed
                 self._load(
                     index_processor=index_processor,
                     dataset=dataset,
