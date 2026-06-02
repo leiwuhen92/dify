@@ -23,6 +23,7 @@ class PdfExtractor(BaseExtractor):
         self._file_cache_key = file_cache_key
 
     def extract(self) -> list[Document]:
+        # 首先尝试从缓存中加载文件, 如果存在则直接返回文档; 否则读取并解新PDF文件
         plaintext_file_exists = False
         if self._file_cache_key:
             try:
@@ -31,13 +32,15 @@ class PdfExtractor(BaseExtractor):
                 return [Document(page_content=text)]
             except FileNotFoundError:
                 pass
+
+        # 情性加载PDF文件为页面流,并将每个页面传递给parse方法进行解析
         documents = list(self.load())
         text_list = []
         for document in documents:
             text_list.append(document.page_content)
         text = "\n\n".join(text_list)
 
-        # save plaintext file for caching
+        # save plaintext file for caching  如果文件未在缓存中找到，则将解析后的文本保存到缓存中以供后续使用
         if not plaintext_file_exists and self._file_cache_key:
             storage.save(self._file_cache_key, text.encode("utf-8"))
 

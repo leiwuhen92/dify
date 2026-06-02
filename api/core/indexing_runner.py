@@ -334,10 +334,15 @@ class IndexingRunner:
     def _extract(
         self, index_processor: BaseIndexProcessor, dataset_document: DatasetDocument, process_rule: dict
     ) -> list[Document]:
-        # load file
+        # 验证数据源类型
         if dataset_document.data_source_type not in {"upload_file", "notion_import", "website_crawl"}:
             return []
 
+        '''
+        根据不同数据源类型来设置索引构建的参数，并调用索引构建器来构建索引，分为两步：
+            (1)设置文件内容提取的参数：也就是构建ExtractSetting对象
+            (2)调用对应索引构建器的extract函数：index_processor.extract来处理文档
+        '''
         data_source_info = dataset_document.data_source_info_dict
         text_docs = []
         if dataset_document.data_source_type == "upload_file":
@@ -352,6 +357,7 @@ class IndexingRunner:
                 extract_setting = ExtractSetting(
                     datasource_type="upload_file", upload_file=file_detail, document_model=dataset_document.doc_form
                 )
+                # 调用索引处理器的extract，从文档中获取段落或页数据，并把文档段落内容保存到Document对象中
                 text_docs = index_processor.extract(extract_setting, process_rule_mode=process_rule["mode"])
         elif dataset_document.data_source_type == "notion_import":
             if (
@@ -393,10 +399,11 @@ class IndexingRunner:
                 document_model=dataset_document.doc_form,
             )
             text_docs = index_processor.extract(extract_setting, process_rule_mode=process_rule["mode"])
+
         # update document status to splitting
         self._update_document_index_status(
             document_id=dataset_document.id,
-            after_indexing_status="splitting",
+            after_indexing_status="splitting",   # 更新数据库中文档的处理状态为：splitting
             extra_update_params={
                 DatasetDocument.word_count: sum(len(text_doc.page_content) for text_doc in text_docs),
                 DatasetDocument.parsing_completed_at: datetime.datetime.now(datetime.UTC).replace(tzinfo=None),
@@ -406,7 +413,7 @@ class IndexingRunner:
         # replace doc id to document model id
         text_docs = cast(list[Document], text_docs)
         for text_doc in text_docs:
-            if text_doc.metadata is not None:
+            if text_doc.metadata is not None:   # 为从文本中提取出来的每个段落内容添加元数据：添加文档id和数据集id
                 text_doc.metadata["document_id"] = dataset_document.id
                 text_doc.metadata["dataset_id"] = dataset_document.dataset_id
 

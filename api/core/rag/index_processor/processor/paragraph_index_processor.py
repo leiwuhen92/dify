@@ -19,6 +19,7 @@ from services.entities.knowledge_entities.knowledge_entities import Rule
 
 class ParagraphIndexProcessor(BaseIndexProcessor):
     def extract(self, extract_setting: ExtractSetting, **kwargs) -> list[Document]:
+        # 索引处理器都会调用ExtractProcessor.extract函数来进行处理
         text_docs = ExtractProcessor.extract(
             extract_setting=extract_setting,
             is_automatic=(

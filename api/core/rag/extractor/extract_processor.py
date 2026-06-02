@@ -99,11 +99,12 @@ class ExtractProcessor:
                     # FIXME mypy: Cannot determine type of 'tempfile._get_candidate_names' better not use it here
                     file_path = f"{temp_dir}/{next(tempfile._get_candidate_names())}{suffix}"  # type: ignore
                     storage.download(upload_file.key, file_path)
+
                 input_file = Path(file_path)
                 file_extension = input_file.suffix.lower()
-                etl_type = dify_config.ETL_TYPE
+                etl_type = dify_config.ETL_TYPE   # 取自env文件配置， 'dify' or 'Unstructured'
                 extractor: Optional[BaseExtractor] = None
-                if etl_type == "Unstructured":
+                if etl_type == "Unstructured":     # Unstructured提取器映射
                     unstructured_api_url = dify_config.UNSTRUCTURED_API_URL
                     unstructured_api_key = dify_config.UNSTRUCTURED_API_KEY or ""
 
@@ -140,7 +141,7 @@ class ExtractProcessor:
                     else:
                         # txt
                         extractor = TextExtractor(file_path, autodetect_encoding=True)
-                else:
+                else:  # 标准提取器映射
                     if file_extension in {".xlsx", ".xls"}:
                         extractor = ExcelExtractor(file_path)
                     elif file_extension == ".pdf":
