@@ -542,7 +542,7 @@ class IndexingRunner:
         indexing_start_at = time.perf_counter()
         tokens = 0
         if dataset_document.doc_form != IndexType.PARENT_CHILD_INDEX:
-            # create keyword index
+            # create keyword index  关键词索引
             create_keyword_thread = threading.Thread(
                 target=self._process_keyword_index,
                 args=(current_app._get_current_object(), dataset.id, dataset_document.id, documents),  # type: ignore
