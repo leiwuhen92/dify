@@ -36,6 +36,7 @@ class WeightRerankRunner(BaseRerankRunner):
 
         :return:
         """
+        # 1、对document进行去重处理
         unique_documents = []
         doc_ids = set()
         for document in documents:
@@ -45,21 +46,25 @@ class WeightRerankRunner(BaseRerankRunner):
 
         documents = unique_documents
 
+        # 2、使用BM25算法对query和每个document进行分词处理，并计算每个文档和query的相似度分数。这样就得到每个document和query的相似度分数
         query_scores = self._calculate_keyword_score(query, documents)
+        # 3、对query和document进行向量化处理，并计算每个document和query向量的相似度分数。这样就得到每个document和query的向量的相似度分数
         query_vector_scores = self._calculate_cosine(self.tenant_id, query, documents, self.weights.vector_setting)
 
+        # 4、针对每个document：将基于分词 和 向量的两个分数按照给定的权重综合计算，得到每个document和query相似度的最终评分
         rerank_documents = []
         for document, query_score, query_vector_score in zip(documents, query_scores, query_vector_scores):
             score = (
                 self.weights.vector_setting.vector_weight * query_vector_score
                 + self.weights.keyword_setting.keyword_weight * query_score
-            )
-            if score_threshold and score < score_threshold:
+            )    # 计算综合得分
+            if score_threshold and score < score_threshold:  # 如果设置了 score_threshold 且文档的综合评分为负数，则跳过
                 continue
             if document.metadata is not None:
-                document.metadata["score"] = score
+                document.metadata["score"] = score  # 添加文档的综合评分到元数据中
                 rerank_documents.append(document)
 
+        # 5、根据document的得分对其进行排序，并选择得分最高的top_n的个document返回
         rerank_documents.sort(key=lambda x: x.metadata["score"] if x.metadata else 0, reverse=True)
         return rerank_documents[:top_n] if top_n else rerank_documents
 

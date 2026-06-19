@@ -9,8 +9,8 @@ class RerankRunnerFactory:
     def create_rerank_runner(runner_type: str, *args, **kwargs) -> BaseRerankRunner:
         match runner_type:
             case RerankMode.RERANKING_MODEL.value:
-                return RerankModelRunner(*args, **kwargs)
+                return RerankModelRunner(*args, **kwargs)   # 使用reranker模型
             case RerankMode.WEIGHTED_SCORE.value:
-                return WeightRerankRunner(*args, **kwargs)
+                return WeightRerankRunner(*args, **kwargs)  # 使用权重计算
             case _:
                 raise ValueError(f"Unknown runner type: {runner_type}")

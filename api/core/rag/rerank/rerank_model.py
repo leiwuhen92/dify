@@ -26,6 +26,7 @@ class RerankModelRunner(BaseRerankRunner):
         :param user: unique user id if needed
         :return:
         """
+        # 1、对document进行去重处理，若是dify文档，记录doc_id
         docs = []
         doc_ids = set()
         unique_documents = []
@@ -45,12 +46,14 @@ class RerankModelRunner(BaseRerankRunner):
 
         documents = unique_documents
 
+        # 2、调用rerank模型来对document进行重排处理，并输出重排序后的document列表
         rerank_result = self.rerank_model_instance.invoke_rerank(
             query=query, docs=docs, score_threshold=score_threshold, top_n=top_n, user=user
         )
 
         rerank_documents = []
 
+        # 3、格式化重新排序后的document，生成Document对象，并把排序后的分数添加到document.metadata["score"]字段中
         for result in rerank_result.docs:
             # format document
             rerank_document = Document(
