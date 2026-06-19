@@ -70,14 +70,17 @@ class WeightRerankRunner(BaseRerankRunner):
 
     def _calculate_keyword_score(self, query: str, documents: list[Document]) -> list[float]:
         """
-        Calculate BM25 scores
+        Calculate BM25 scores   文档的关键词提取和相似度分数计算
         :param query: search query
         :param documents: documents for reranking
 
         :return:
         """
+        # 使用Jieba对问题（query）进行分词和关键词提取，同时去掉停用词
         keyword_table_handler = JiebaKeywordTableHandler()
         query_keywords = keyword_table_handler.extract_keywords(query, None)
+
+        # 使用Jieba对document中的文本内容进行分词和关键词提取
         documents_keywords = []
         for document in documents:
             # get the document keywords
@@ -86,13 +89,13 @@ class WeightRerankRunner(BaseRerankRunner):
                 document.metadata["keywords"] = document_keywords
                 documents_keywords.append(document_keywords)
 
-        # Counter query keywords(TF)
+        # Counter query keywords(TF)  计算query关键词序列的TF
         query_keyword_counts = Counter(query_keywords)
 
         # total documents
         total_documents = len(documents)
 
-        # calculate all documents' keywords IDF
+        # calculate all documents' keywords IDF 计算每个文档分块关键词序列的IDF
         all_keywords = set()
         for document_keywords in documents_keywords:
             all_keywords.update(document_keywords)
@@ -104,6 +107,7 @@ class WeightRerankRunner(BaseRerankRunner):
             # IDF
             keyword_idf[keyword] = math.log((1 + total_documents) / (1 + doc_count_containing_keyword)) + 1
 
+        # 计算问题(query)关键词的TF-IDF的值
         query_tfidf = {}
 
         for keyword, count in query_keyword_counts.items():
@@ -111,7 +115,7 @@ class WeightRerankRunner(BaseRerankRunner):
             idf = keyword_idf.get(keyword, 0)
             query_tfidf[keyword] = tf * idf
 
-        # calculate all documents' TF-IDF
+        # calculate all documents' TF-IDF  计算所有文档的IF-IDF的值
         documents_tfidf = []
         for document_keywords in documents_keywords:
             document_keyword_counts = Counter(document_keywords)
@@ -123,18 +127,23 @@ class WeightRerankRunner(BaseRerankRunner):
             documents_tfidf.append(document_tfidf)
 
         def cosine_similarity(vec1, vec2):
+            # 1. 获取共同关键词
             intersection = set(vec1.keys()) & set(vec2.keys())
+            # 2. 计算向量点积
             numerator = sum(vec1[x] * vec2[x] for x in intersection)
 
+            # 3. 计算向量模长
             sum1 = sum(vec1[x] ** 2 for x in vec1)
             sum2 = sum(vec2[x] ** 2 for x in vec2)
             denominator = math.sqrt(sum1) * math.sqrt(sum2)
 
+            # 4. 计算余弦相似度
             if not denominator:
                 return 0.0
             else:
                 return float(numerator) / denominator
 
+        # 计算每个文档内容和问题内容tfidf值的余弦相似度
         similarities = []
         for document_tfidf in documents_tfidf:
             similarity = cosine_similarity(query_tfidf, document_tfidf)
