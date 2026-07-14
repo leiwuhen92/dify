@@ -6,6 +6,7 @@ from core.helper.code_executor.template_transformer import TemplateTransformer
 class Python3TemplateTransformer(TemplateTransformer):
     @classmethod
     def get_runner_script(cls) -> str:
+        # 预置的代码模板
         runner_script = dedent(f"""
             # declare main function
             {cls._code_placeholder}

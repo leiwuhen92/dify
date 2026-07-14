@@ -63,17 +63,18 @@ class CodeExecutor:
         :param code: code
         :return:
         """
+        # 接口地址
         url = URL(str(dify_config.CODE_EXECUTION_ENDPOINT)) / "v1" / "sandbox" / "run"
-
+        # 鉴权
         headers = {"X-Api-Key": dify_config.CODE_EXECUTION_API_KEY}
-
+        # 入参
         data = {
             "language": cls.code_language_to_running_language.get(language),
             "code": code,
             "preload": preload,
             "enable_network": True,
         }
-
+        # 发请求
         try:
             response = post(
                 str(url),
@@ -120,12 +121,13 @@ class CodeExecutor:
     @classmethod
     def execute_workflow_code_template(cls, language: CodeLanguage, code: str, inputs: Mapping[str, Any]):
         """
-        Execute code
+        Execute code  执行工作流代码节点，注意它并没有直接执行用户的代码，而是做了一层模板转换
         :param language: code language
         :param code: code
         :param inputs: inputs
         :return:
         """
+        # 将用户代码和输入参数嵌入预置的代码模版
         template_transformer = cls.code_template_transformers.get(language)
         if not template_transformer:
             raise CodeExecutionError(f"Unsupported language {language}")
@@ -133,8 +135,9 @@ class CodeExecutor:
         runner, preload = template_transformer.transform_caller(code, inputs)
 
         try:
+            # 调用代码执行
             response = cls.execute_code(language, preload, runner)
         except CodeExecutionError as e:
             raise e
-
+        # 将执行结果转换为工作流的节点输出
         return template_transformer.transform_response(response)
