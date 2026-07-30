@@ -45,6 +45,7 @@ class AgentChatAppRunner(AppRunner):
         app_config = application_generate_entity.app_config
         app_config = cast(AgentChatAppConfig, app_config)
 
+        # 根据app_id查询apps表，看app是否存在
         app_record = db.session.query(App).filter(App.id == app_config.app_id).first()
         if not app_record:
             raise ValueError("App not found")
@@ -58,6 +59,7 @@ class AgentChatAppRunner(AppRunner):
         # If the rest number of tokens is not enough, raise exception.
         # Include: prompt template, inputs, query(optional), files(optional)
         # Not Include: memory, external data, dataset context
+        # 根据 prompt template, inputs, files、query（不包括memory、external data、dataset context）计算token，得到剩余可用token。如果剩余可用token不足则抛异常
         self.get_pre_calculate_rest_tokens(
             app_record=app_record,
             model_config=application_generate_entity.model_conf,
@@ -67,6 +69,7 @@ class AgentChatAppRunner(AppRunner):
             query=query,
         )
 
+        # 读取历史对话信息（如果存在）
         memory = None
         if application_generate_entity.conversation_id:
             # get memory of conversation (read-only)
@@ -77,7 +80,7 @@ class AgentChatAppRunner(AppRunner):
 
             memory = TokenBufferMemory(conversation=conversation, model_instance=model_instance)
 
-        # organize all inputs and template to prompt messages
+        # organize all inputs and template to prompt messages  生成提示消息
         # Include: prompt template, inputs, query(optional), files(optional)
         #          memory(optional)
         prompt_messages, _ = self.organize_prompt_messages(
@@ -92,7 +95,7 @@ class AgentChatAppRunner(AppRunner):
 
         # moderation
         try:
-            # process sensitive_word_avoidance
+            # process sensitive_word_avoidance  检查用户输入的文本是否合规（例如是否包含敏感、暴力、违法或违反平台政策的内容）
             _, inputs, query = self.moderation_for_inputs(
                 app_id=app_record.id,
                 tenant_id=app_config.tenant_id,
@@ -112,7 +115,7 @@ class AgentChatAppRunner(AppRunner):
             return
 
         if query:
-            # annotation reply
+            # annotation reply  如果开启标注回复，则通过AnnotationReplyFeature从数据库中查询答案，并跳到handle response那一步
             annotation_reply = self.query_app_annotations_to_reply(
                 app_record=app_record,
                 message=message,
@@ -136,7 +139,7 @@ class AgentChatAppRunner(AppRunner):
                 )
                 return
 
-        # fill in variable inputs from external data tools if exists
+        # fill in variable inputs from external data tools if exists 如果存在外部数据工具，则从其中填充变量输入
         external_data_tools = app_config.external_data_variables
         if external_data_tools:
             inputs = self.fill_in_inputs_from_external_data_tools(
@@ -173,7 +176,7 @@ class AgentChatAppRunner(AppRunner):
         agent_entity = app_config.agent
         assert agent_entity is not None
 
-        # init model instance
+        # init model instance  初始化模型实例
         model_instance = ModelInstance(
             provider_model_bundle=application_generate_entity.model_conf.provider_model_bundle,
             model=application_generate_entity.model_conf.model,
@@ -188,7 +191,7 @@ class AgentChatAppRunner(AppRunner):
             memory=memory,
         )
 
-        # change function call strategy based on LLM model
+        # change function call strategy based on LLM model   根据 LLM 模型更改函数调用策略
         llm_model = cast(LargeLanguageModel, model_instance.model_type_instance)
         model_schema = llm_model.get_model_schema(model_instance.model, model_instance.credentials)
         if not model_schema:
@@ -205,6 +208,7 @@ class AgentChatAppRunner(AppRunner):
             raise ValueError("Message not found")
         db.session.close()
 
+        # 根据策略选择不同的runner
         runner_cls: type[FunctionCallAgentRunner] | type[CotChatAgentRunner] | type[CotCompletionAgentRunner]
         # start agent runner
         if agent_entity.strategy == AgentEntity.Strategy.CHAIN_OF_THOUGHT:
@@ -235,13 +239,14 @@ class AgentChatAppRunner(AppRunner):
             model_instance=model_instance,
         )
 
+        # 运行runner
         invoke_result = runner.run(
             message=message,
             query=query,
             inputs=inputs,
         )
 
-        # handle invoke result
+        # handle invoke result  处理调用结果
         self._handle_invoke_result(
             invoke_result=invoke_result,
             queue_manager=queue_manager,

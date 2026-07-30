@@ -56,7 +56,7 @@ class ToolEngine:
         message_id: Optional[str] = None,
     ) -> tuple[str, list[str], ToolInvokeMeta]:
         """
-        Agent invokes the tool with the given arguments.
+        Agent invokes the tool with the given arguments.  Agent使用给定的参数调用工具
         """
         # check if arguments is a string
         if isinstance(tool_parameters, str):

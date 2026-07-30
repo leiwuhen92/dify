@@ -97,14 +97,14 @@ class AgentChatAppGenerator(MessageBasedAppGenerator):
 
         extras = {"auto_generate_conversation_name": args.get("auto_generate_name", True)}
 
-        # get conversation
+        # get conversation  如果conversation不为空，表示存在历史会话，需要从conversations表获取历史会话
         conversation = None
         conversation_id = args.get("conversation_id")
         if conversation_id:
             conversation = ConversationService.get_conversation(
                 app_model=app_model, conversation_id=conversation_id, user=user
             )
-        # get app model config
+        # get app model config 从app_model_configs表中获取app_model_config
         app_model_config = self._get_app_model_config(app_model=app_model, conversation=conversation)
 
         # validate override model config
@@ -134,7 +134,7 @@ class AgentChatAppGenerator(MessageBasedAppGenerator):
         else:
             file_objs = []
 
-        # convert to app config
+        # convert to app config  读取配置信息
         app_config = AgentChatAppConfigManager.get_app_config(
             app_model=app_model,
             app_model_config=app_model_config,
@@ -142,10 +142,10 @@ class AgentChatAppGenerator(MessageBasedAppGenerator):
             override_config_dict=override_model_config_dict,
         )
 
-        # get tracing instance
+        # get tracing instance  初始化trace_manager，用于跟踪任务
         trace_manager = TraceQueueManager(app_model.id, user.id if isinstance(user, Account) else user.session_id)
 
-        # init application generate entity
+        # init application generate entity  初始化application_generate_entity ，用于存放运行所需要的信息
         application_generate_entity = AgentChatAppGenerateEntity(
             task_id=str(uuid.uuid4()),
             app_config=app_config,
@@ -166,10 +166,10 @@ class AgentChatAppGenerator(MessageBasedAppGenerator):
             trace_manager=trace_manager,
         )
 
-        # init generate records
+        # init generate records  初始化会话记录，涉及conversations表（存在历史会话就更新updated_at字段，否则新增一条conversation记录）、messages表、message_files表
         (conversation, message) = self._init_generate_records(application_generate_entity, conversation)
 
-        # init queue manager
+        # init queue manager  初始化queue_manager（在redis中， 1800s有效期），通过队列传输线程中的结果
         queue_manager = MessageBasedAppQueueManager(
             task_id=application_generate_entity.task_id,
             user_id=application_generate_entity.user_id,
@@ -179,7 +179,7 @@ class AgentChatAppGenerator(MessageBasedAppGenerator):
             message_id=message.id,
         )
 
-        # new thread
+        # new thread   启动线程，调用_generate_worker
         worker_thread = threading.Thread(
             target=self._generate_worker,
             kwargs={

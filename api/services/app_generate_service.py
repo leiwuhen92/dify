@@ -40,12 +40,12 @@ class AppGenerateService:
         :param streaming: streaming
         :return:
         """
-        # system level rate limiter
+        # system level rate limiter 根据参数dify_config.BILLING_ENABLED决定是否开启计费功能
         if dify_config.BILLING_ENABLED:
             # check if it's free plan
             limit_info = BillingService.get_info(app_model.tenant_id)
             if limit_info["subscription"]["plan"] == "sandbox":
-                if cls.system_rate_limiter.is_rate_limited(app_model.tenant_id):
+                if cls.system_rate_limiter.is_rate_limited(app_model.tenant_id):   # 免费换机的系统级限制： 5000次/天
                     raise InvokeRateLimitError(
                         "Rate limit exceeded, please upgrade your plan "
                         f"or your RPD was {dify_config.APP_DAILY_RATE_LIMIT} requests/day"
@@ -53,14 +53,15 @@ class AppGenerateService:
                 cls.system_rate_limiter.increment_rate_limit(app_model.tenant_id)
 
         # app level rate limiter
-        max_active_request = AppGenerateService._get_max_active_requests(app_model)
+        max_active_request = AppGenerateService._get_max_active_requests(app_model)  # 应用级并发请求限制参数，默认值0，表示不限制
         rate_limit = RateLimit(app_model.id, max_active_request)
-        request_id = RateLimit.gen_request_key()
+        request_id = RateLimit.gen_request_key()  # uuid
         try:
             request_id = rate_limit.enter(request_id)
+            # 根据app_model.mode值调用不同的执行器Generator
             if app_model.mode == AppMode.COMPLETION.value:
                 return rate_limit.generate(
-                    CompletionAppGenerator.convert_to_event_stream(
+                    CompletionAppGenerator.convert_to_event_stream(   # 转化为SSE流模式
                         CompletionAppGenerator().generate(
                             app_model=app_model, user=user, args=args, invoke_from=invoke_from, streaming=streaming
                         ),

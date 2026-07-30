@@ -57,7 +57,7 @@ class CotAgentRunner(BaseAgentRunner, ABC):
         app_config = self.app_config
         assert app_config.agent
 
-        # init instruction
+        # init instruction  初始化指令
         inputs = inputs or {}
         instruction = app_config.prompt_template.simple_prompt_template or ""
         self._instruction = self._fill_in_inputs_from_external_data_tools(instruction, inputs)
@@ -65,7 +65,7 @@ class CotAgentRunner(BaseAgentRunner, ABC):
         iteration_step = 1
         max_iteration_steps = min(app_config.agent.max_iteration if app_config.agent else 5, 5) + 1
 
-        # convert tools into ModelRuntime Tool format
+        # convert tools into ModelRuntime Tool format   将工具转换为 ModelRuntime 工具格式
         tool_instances, prompt_messages_tools = self._init_prompt_tools()
         self._prompt_messages_tools = prompt_messages_tools
 
@@ -96,7 +96,7 @@ class CotAgentRunner(BaseAgentRunner, ABC):
 
             message_file_ids: list[str] = []
 
-            agent_thought = self.create_agent_thought(
+            agent_thought = self.create_agent_thought(   # 下一步推理或动作
                 message_id=message.id, message="", tool_name="", tool_input="", messages_ids=message_file_ids
             )
 
@@ -108,7 +108,7 @@ class CotAgentRunner(BaseAgentRunner, ABC):
             # recalc llm max tokens
             prompt_messages = self._organize_prompt_messages()
             self.recalc_llm_max_tokens(self.model_config, prompt_messages)
-            # invoke model
+            # invoke model  模型输出
             chunks = model_instance.invoke_llm(
                 prompt_messages=prompt_messages,
                 model_parameters=app_generate_entity.model_conf.parameters,
@@ -159,7 +159,7 @@ class CotAgentRunner(BaseAgentRunner, ABC):
             scratchpad.thought = scratchpad.thought.strip() or "I am thinking about how to help you"
             self._agent_scratchpad.append(scratchpad)
 
-            # get llm usage
+            # get llm usage  获取 LLM 使用情况（用量统计）
             if "usage" in usage_dict:
                 if usage_dict["usage"] is not None:
                     increase_usage(llm_usage, usage_dict["usage"])
@@ -184,11 +184,11 @@ class CotAgentRunner(BaseAgentRunner, ABC):
                 )
 
             if not scratchpad.action:
-                # failed to extract action, return final answer directly
+                # failed to extract action, return final answer directly  提取action失败，直接返回最终答案
                 final_answer = ""
             else:
                 if scratchpad.action.action_name.lower() == "final answer":
-                    # action is final answer, return final answer directly
+                    # action is final answer, return final answer directly  action是final answer，直接返回最终答案
                     try:
                         if isinstance(scratchpad.action.action_input, dict):
                             final_answer = json.dumps(scratchpad.action.action_input)
@@ -200,7 +200,7 @@ class CotAgentRunner(BaseAgentRunner, ABC):
                         final_answer = f"{scratchpad.action.action_input}"
                 else:
                     function_call_state = True
-                    # action is tool call, invoke tool
+                    # action is tool call, invoke tool    动作为工具调用，调用工具
                     tool_invoke_response, tool_invoke_meta = self._handle_invoke_action(
                         action=scratchpad.action,
                         tool_instances=tool_instances,
@@ -281,7 +281,7 @@ class CotAgentRunner(BaseAgentRunner, ABC):
         :param trace_manager: trace manager
         :return: observation, meta
         """
-        # action is tool call, invoke tool
+        # action is tool call, invoke tool  调用工具
         tool_call_name = action.action_name
         tool_call_args = action.action_input
         tool_instance = tool_instances.get(tool_call_name)
